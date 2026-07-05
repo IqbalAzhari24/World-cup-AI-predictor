@@ -29,6 +29,9 @@ on par with published football-prediction models.
 ```bash
 pip install -r requirements.txt
 
+# Web UI — match predictor, bracket simulator, Elo rankings
+streamlit run app.py
+
 # 1. Download data + train (takes ~1 minute)
 python -m src.model
 
@@ -52,6 +55,7 @@ France vs Morocco  (neutral venue)
 ## Project layout
 
 ```
+app.py         # Streamlit web UI                        (streamlit run app.py)
 src/
   data.py      # dataset download + loading (played matches & upcoming fixtures)
   elo.py       # Elo ratings + rolling form, computed match-by-match
@@ -65,5 +69,5 @@ src/
 - [ ] Group-stage simulation (points, goal difference, tiebreakers) for full-tournament odds
 - [ ] Poisson goal model for exact scoreline probabilities
 - [ ] Probability calibration (isotonic) + Brier score tracking
-- [ ] Streamlit web UI with bracket visualization
+- [x] Streamlit web UI (match predictor, bracket simulator, Elo rankings)
 - [ ] Auto-refresh data weekly and re-train

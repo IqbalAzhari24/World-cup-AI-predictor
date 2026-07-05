@@ -23,8 +23,8 @@ def win_probability(model, states, team_a: str, team_b: str) -> float:
     return p_win + p_draw * (p_win / (p_win + p_loss))
 
 
-def simulate_knockout(teams: list[str], n_sims: int = 10000, seed: int = 42) -> Counter:
-    model, states = load_artifacts()
+def simulate_knockout(teams: list[str], n_sims: int = 10000, seed: int = 42, artifacts=None) -> Counter:
+    model, states = artifacts if artifacts is not None else load_artifacts()
     for t in teams:
         if t not in states:
             raise KeyError(f"Unknown team: {t!r}")
