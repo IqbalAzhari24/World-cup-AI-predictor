@@ -5,6 +5,7 @@ import streamlit as st
 from src.elo import match_features
 from src.model import FEATURES, load_artifacts, train
 from src.simulate import simulate_knockout
+from src.tournament import extract_groups, simulate_tournament
 
 st.set_page_config(page_title="World Cup AI Predictor", page_icon="⚽", layout="centered")
 
@@ -73,8 +74,8 @@ st.caption(
     "Probabilities, not prophecies."
 )
 
-match_tab, bracket_tab, rankings_tab = st.tabs(
-    ["Match predictor", "Bracket simulator", "Elo rankings"]
+match_tab, tournament_tab, bracket_tab, rankings_tab = st.tabs(
+    ["Match predictor", "2026 tournament", "Bracket simulator", "Elo rankings"]
 )
 
 with match_tab:
@@ -92,6 +93,31 @@ with match_tab:
         bar_chart([(f"{team_a} win", p_win, "home"),
                    ("Draw", p_draw, "draw"),
                    (f"{team_b} win", p_loss, "away")])
+
+with tournament_tab:
+    st.markdown(
+        "Simulates the **entire 2026 World Cup** from the group stage: round-robin "
+        "groups with sampled scorelines (points, goal difference, tiebreakers), "
+        "top 2 + 8 best thirds advance, seeded round-of-32 knockout."
+    )
+    n_full_sims = st.slider("Simulations", 1000, 20000, 5000, step=1000, key="full_sims")
+
+    @st.cache_data(show_spinner="Simulating tournaments...")
+    def tournament_odds(n_sims: int):
+        champions, finalists = simulate_tournament(2026, n_sims, artifacts=(model, states))
+        return champions, finalists
+
+    if st.button("Simulate World Cup 2026", type="primary"):
+        champions, finalists = tournament_odds(n_full_sims)
+        st.subheader("Chance of winning the cup")
+        bar_chart([(team, wins / n_full_sims, "champ")
+                   for team, wins in champions.most_common(15)])
+        st.subheader("Chance of reaching the final")
+        bar_chart([(team, finalists[team] / n_full_sims, "champ")
+                   for team, _ in champions.most_common(15)])
+        with st.expander("The groups (recovered from the fixture list)"):
+            for i, g in enumerate(extract_groups(2026)):
+                st.markdown(f"**Group {chr(65 + i)}** — {', '.join(g)}")
 
 with bracket_tab:
     st.markdown(
