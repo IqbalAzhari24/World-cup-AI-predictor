@@ -2,6 +2,7 @@
 import pandas as pd
 import streamlit as st
 
+from src.data import DATA_PATH, load_matches
 from src.elo import match_features
 from src.model import FEATURES, load_artifacts, train
 from src.simulate import simulate_knockout
@@ -65,8 +66,25 @@ def get_artifacts():
         return train(verbose=False)
 
 
+@st.cache_data
+def data_through(_mtime: float) -> str:
+    """Date of the latest played match in the local dataset."""
+    df = pd.read_csv(DATA_PATH, usecols=["date", "home_score"])
+    return df.loc[df.home_score.notna(), "date"].max()
+
+
 model, states = get_artifacts()
 teams_by_rating = sorted(states, key=lambda t: states[t].rating, reverse=True)
+
+with st.sidebar:
+    st.caption(f"Results through **{data_through(DATA_PATH.stat().st_mtime)}**")
+    if st.button("🔄 Refresh data & retrain", help="Download the latest results and rebuild the model (~1 min)"):
+        with st.spinner("Downloading latest results and retraining..."):
+            load_matches(refresh=True)
+            train(verbose=False)
+        get_artifacts.clear()
+        st.cache_data.clear()
+        st.rerun()
 
 st.title("⚽ World Cup AI Predictor")
 st.caption(

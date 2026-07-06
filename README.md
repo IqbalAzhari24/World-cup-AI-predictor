@@ -29,7 +29,9 @@ on par with published football-prediction models.
 ```bash
 pip install -r requirements.txt
 
-# Web UI — match predictor, bracket simulator, Elo rankings
+# Web UI — match predictor, tournament & bracket simulators, Elo rankings.
+# The sidebar shows how fresh the data is; one click on "Refresh data &
+# retrain" pulls the latest results and rebuilds the model (~1 min).
 streamlit run app.py
 
 # 1. Download data + train (takes ~1 minute)
@@ -80,4 +82,5 @@ group plus the 8 best thirds are seeded into the round-of-32 bracket.
 - [ ] Poisson goal model for exact scoreline probabilities
 - [ ] Probability calibration (isotonic) + Brier score tracking
 - [x] Streamlit web UI (match predictor, bracket simulator, Elo rankings)
-- [ ] Auto-refresh data weekly and re-train
+- [x] One-click refresh-and-retrain from the app sidebar
+- [ ] Auto-refresh data weekly and re-train (scheduled)
