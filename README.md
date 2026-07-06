@@ -29,6 +29,9 @@ on par with published football-prediction models.
 ```bash
 pip install -r requirements.txt
 
+# Web UI — match predictor, bracket simulator, Elo rankings
+streamlit run app.py
+
 # 1. Download data + train (takes ~1 minute)
 python -m src.model
 
@@ -38,6 +41,9 @@ python -m src.predict "France" "Morocco"
 # 3. Simulate a knockout bracket (teams in bracket order)
 python -m src.simulate "Argentina" "Egypt" "Switzerland" "Colombia" \
                        "France" "Morocco" "Brazil" "Spain" -n 10000
+
+# 4. Simulate the FULL 2026 World Cup from the group stage
+python -m src.tournament -n 10000
 ```
 
 Example output:
@@ -52,18 +58,26 @@ France vs Morocco  (neutral venue)
 ## Project layout
 
 ```
+app.py         # Streamlit web UI                        (streamlit run app.py)
 src/
   data.py      # dataset download + loading (played matches & upcoming fixtures)
   elo.py       # Elo ratings + rolling form, computed match-by-match
   model.py     # training, evaluation, artifact saving   (python -m src.model)
   predict.py   # single-match CLI                        (python -m src.predict)
   simulate.py  # Monte Carlo knockout simulation         (python -m src.simulate)
+  tournament.py# full tournament: groups + knockout      (python -m src.tournament)
 ```
+
+The 2026 groups aren't hardcoded — `tournament.py` recovers them from the
+fixture list by finding the 4-team connected components of the group-stage
+match graph. Group games sample full scorelines so points, goal difference
+and goals-for drive the standings like the real tiebreakers; the top 2 per
+group plus the 8 best thirds are seeded into the round-of-32 bracket.
 
 ## Roadmap
 
-- [ ] Group-stage simulation (points, goal difference, tiebreakers) for full-tournament odds
+- [x] Group-stage simulation (points, goal difference, tiebreakers) for full-tournament odds
 - [ ] Poisson goal model for exact scoreline probabilities
 - [ ] Probability calibration (isotonic) + Brier score tracking
-- [ ] Streamlit web UI with bracket visualization
+- [x] Streamlit web UI (match predictor, bracket simulator, Elo rankings)
 - [ ] Auto-refresh data weekly and re-train
