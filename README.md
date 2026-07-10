@@ -97,15 +97,17 @@ group plus the 8 best thirds are seeded into the round-of-32 bracket.
 
 ## Match center (player features)
 
-![Match center: first XI, goalscorers, Man of the Match](docs/screenshots/match_center.png)
+![Match center: prediction vs actual result, first XI, goalscorers, Man of the Match](docs/screenshots/match_center.png)
 
-*Live from football-data.org — on a free-tier key, lineups/goals aren't
-included (see the caveat below), so the tab shows that plainly instead of
-guessing.*
+*France vs Morocco (2-0) — our model called France to win at 54.0% before
+kickoff, so it's marked ✅. On a free football-data.org key, lineups/goals
+aren't included (see the caveat below), so that part of the tab shows that
+plainly instead of guessing.*
 
 The rest of the project needs no API key. This one feature does, because
-lineups and goalscorers are real-world match data no open dataset tracks —
-they come live from [football-data.org](https://www.football-data.org/).
+real-match data — lineups, goals, results — isn't in the open historical
+dataset the rest of the app trains on. It comes live from
+[football-data.org](https://www.football-data.org/).
 
 1. Register for a free key: https://www.football-data.org/client/register
 2. Make it available to the app one of two ways (never commit it to git —
@@ -118,7 +120,12 @@ they come live from [football-data.org](https://www.football-data.org/).
      `secrets.toml` keys as environment variables automatically, so no code
      change is needed either way.
 3. Pick a competition (World Cup, Euros, Champions League, Premier League —
-   the ones covered by the free tier) and a finished match. You'll see:
+   the ones covered by the free tier) and any match. You'll see:
+   - **Our prediction vs the actual result** — the same Elo/gradient-boosting
+     model from the match predictor tab, run on the two real teams, with a
+     ✅/❌ marker against the final score once the match has been played.
+     For club competitions (Champions League, Premier League) the model has
+     no rating for those teams, so this just says so instead of guessing.
    - **First XI** — starting lineup and formation for each side.
    - **Goalscorers** — minute, scorer, assist, per goal.
    - **Man of the match** — *heuristic*, not an official award: football-data.org

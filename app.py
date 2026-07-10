@@ -217,6 +217,34 @@ with matchcenter_tab:
                 if match is not None:
                     st.subheader(match_summary(match))
 
+                    home_name = match["homeTeam"]["name"]
+                    away_name = match["awayTeam"]["name"]
+                    st.markdown("**Our prediction vs the actual result**")
+                    if home_name in states and away_name in states:
+                        row = match_features(states[home_name], states[away_name], neutral=True)
+                        p_win, p_draw, p_loss = model.predict_proba(pd.DataFrame([row])[FEATURES])[0]
+                        bar_chart([(f"{home_name} win", p_win, "home"),
+                                   ("Draw", p_draw, "draw"),
+                                   (f"{away_name} win", p_loss, "away")])
+
+                        full = match.get("score", {}).get("fullTime", {})
+                        h, a = full.get("home"), full.get("away")
+                        if match.get("status") == "FINISHED" and h is not None and a is not None:
+                            actual = f"{home_name} win" if h > a else f"{away_name} win" if a > h else "Draw"
+                            predicted = max(
+                                [(f"{home_name} win", p_win), ("Draw", p_draw), (f"{away_name} win", p_loss)],
+                                key=lambda x: x[1],
+                            )[0]
+                            mark = "✅ matched our top pick" if predicted == actual else "❌ missed our top pick"
+                            st.caption(f"Actual: **{actual}** ({h}-{a}). {mark} (**{predicted}**).")
+                        else:
+                            st.caption("Match hasn't kicked off yet — showing our prediction only.")
+                    else:
+                        st.caption(
+                            "Prediction unavailable — our model only covers international "
+                            "teams (World Cup, Euros), not club sides."
+                        )
+
                     xi = first_xi(match)
                     col1, col2 = st.columns(2)
                     for col, side in ((col1, "home"), (col2, "away")):
