@@ -97,8 +97,15 @@ lineups and goalscorers are real-world match data no open dataset tracks —
 they come live from [football-data.org](https://www.football-data.org/).
 
 1. Register for a free key: https://www.football-data.org/client/register
-2. Set it as `FOOTBALL_DATA_API_KEY`, or paste it into the "Match center" tab
-   in the app (kept in-session only, never written to disk).
+2. Make it available to the app one of two ways (never commit it to git —
+   both paths below are already git-ignored):
+   - **Local run:** `export FOOTBALL_DATA_API_KEY="your-key-here"`
+   - **Deployed app (e.g. Streamlit Community Cloud) shared by one key for
+     all visitors:** copy `.streamlit/secrets.toml.example` to
+     `.streamlit/secrets.toml` and paste your key in (or paste the same
+     content into the host's Secrets settings). Streamlit exposes root-level
+     `secrets.toml` keys as environment variables automatically, so no code
+     change is needed either way.
 3. Pick a competition (World Cup, Euros, Champions League, Premier League —
    the ones covered by the free tier) and a finished match. You'll see:
    - **First XI** — starting lineup and formation for each side.

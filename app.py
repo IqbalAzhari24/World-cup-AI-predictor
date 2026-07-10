@@ -174,13 +174,7 @@ with matchcenter_tab:
         "**Man of the Match** — for real matches, pulled live from "
         "[football-data.org](https://www.football-data.org/)."
     )
-    api_key = st.text_input(
-        "football-data.org API key",
-        value=api_key_from_env(),
-        type="password",
-        help="Free at https://www.football-data.org/client/register. "
-             "Not stored — only kept for this session.",
-    )
+    api_key = api_key_from_env()
     comp_code = st.selectbox(
         "Competition", list(COMPETITIONS), format_func=lambda c: f"{COMPETITIONS[c]} ({c})"
     )
@@ -194,7 +188,11 @@ with matchcenter_tab:
         return get_match(match_id, key)
 
     if not api_key:
-        st.info("Enter an API key above to browse matches.")
+        st.info(
+            "Match center needs a football-data.org API key. Set "
+            "`FOOTBALL_DATA_API_KEY` (env var, or `.streamlit/secrets.toml` "
+            "for a deployed app) — see the README."
+        )
     else:
         try:
             matches = cached_matches(comp_code, api_key)
