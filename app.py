@@ -2,10 +2,12 @@
 import pandas as pd
 import streamlit as st
 
+from src.api_football import ApiFootballError
+from src.api_football import api_key_from_env as api_football_key_from_env
 from src.data import DATA_PATH, load_matches
 from src.elo import match_features
 from src.football_data import COMPETITIONS, FootballDataError, api_key_from_env, get_match, list_matches
-from src.matchcenter import first_xi, goalscorers, man_of_the_match, match_summary
+from src.matchcenter import enrich_from_api_football, first_xi, goalscorers, man_of_the_match, match_summary
 from src.model import FEATURES, load_artifacts, train
 from src.simulate import simulate_knockout
 from src.tournament import extract_groups, simulate_tournament
@@ -217,7 +219,52 @@ with matchcenter_tab:
                 if match is not None:
                     st.subheader(match_summary(match))
 
-                    xi = first_xi(match)
+                    home_name = match["homeTeam"]["name"]
+                    away_name = match["awayTeam"]["name"]
+                    st.markdown("**Our prediction vs the actual result**")
+                    if home_name in states and away_name in states:
+                        row = match_features(states[home_name], states[away_name], neutral=True)
+                        p_win, p_draw, p_loss = model.predict_proba(pd.DataFrame([row])[FEATURES])[0]
+                        bar_chart([(f"{home_name} win", p_win, "home"),
+                                   ("Draw", p_draw, "draw"),
+                                   (f"{away_name} win", p_loss, "away")])
+
+                        full = match.get("score", {}).get("fullTime", {})
+                        h, a = full.get("home"), full.get("away")
+                        if match.get("status") == "FINISHED" and h is not None and a is not None:
+                            actual = f"{home_name} win" if h > a else f"{away_name} win" if a > h else "Draw"
+                            predicted = max(
+                                [(f"{home_name} win", p_win), ("Draw", p_draw), (f"{away_name} win", p_loss)],
+                                key=lambda x: x[1],
+                            )[0]
+                            mark = "✅ matched our top pick" if predicted == actual else "❌ missed our top pick"
+                            st.caption(f"Actual: **{actual}** ({h}-{a}). {mark} (**{predicted}**).")
+                        else:
+                            st.caption("Match hasn't kicked off yet — showing our prediction only.")
+                    else:
+                        st.caption(
+                            "Prediction unavailable — our model only covers international "
+                            "teams (World Cup, Euros), not club sides."
+                        )
+
+                    af_key = api_football_key_from_env()
+
+                    @st.cache_data(show_spinner="Checking API-Football for lineups/goals...", ttl=3600)
+                    def cached_af_enrichment(home: str, away: str, date: str, key: str):
+                        return enrich_from_api_football(home, away, date, key)
+
+                    enrichment = None
+                    af_error = None
+                    if af_key:
+                        try:
+                            enrichment = cached_af_enrichment(home_name, away_name, match["utcDate"][:10], af_key)
+                        except ApiFootballError as e:
+                            af_error = str(e)
+
+                    xi = enrichment["first_xi"] if enrichment else first_xi(match)
+                    goals = enrichment["goalscorers"] if enrichment else goalscorers(match)
+                    motm = enrichment["man_of_the_match"] if enrichment else man_of_the_match(match)
+
                     col1, col2 = st.columns(2)
                     for col, side in ((col1, "home"), (col2, "away")):
                         info = xi[side]
@@ -237,7 +284,6 @@ with matchcenter_tab:
                             )
 
                     st.markdown("**Goals**")
-                    goals = goalscorers(match)
                     if goals.empty:
                         st.caption("No goals in this match.")
                     else:
@@ -251,15 +297,29 @@ with matchcenter_tab:
                         )
 
                     st.markdown("**Man of the match**")
-                    motm = man_of_the_match(match)
                     if motm:
                         st.write(f"🏅 **{motm['name']}** ({motm['team']}) — heuristic score {motm['points']}")
                         st.caption(
-                            "Not an official award — football-data.org doesn't publish one. "
+                            "Not an official award — no provider publishes one. "
                             "Derived from goals, assists and cards in this match."
                         )
                     else:
                         st.caption("Not enough match event data to compute one.")
+
+                    if enrichment:
+                        st.caption("Lineups and goals above are from API-Football (matched by team + date).")
+                    elif af_error:
+                        st.caption(f"API-Football lookup failed: {af_error}")
+                    elif af_key:
+                        st.caption(
+                            "No matching API-Football fixture found for this team/date pairing — "
+                            "showing football-data.org data only."
+                        )
+                    else:
+                        st.caption(
+                            "Tip: set `API_FOOTBALL_KEY` to fill in lineups/goals that "
+                            "football-data.org's free tier doesn't include — see the README."
+                        )
 
 with rankings_tab:
     top = st.slider("Show top", 10, 50, 25, step=5)
