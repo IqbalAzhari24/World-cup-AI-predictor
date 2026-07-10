@@ -157,10 +157,15 @@ def first_xi_from_api_football(fixture: dict, lineups: list) -> dict[str, dict]:
 
 
 def goalscorers_from_api_football(events: list) -> pd.DataFrame:
-    """Same shape as goalscorers(), sourced from an API-Football events response."""
+    """Same shape as goalscorers(), sourced from an API-Football events response.
+
+    API-Football files missed penalties under type "Goal" (detail "Missed
+    Penalty") since it's the same in-game event category — filtered out here
+    since no goal was actually scored.
+    """
     rows = []
     for e in events:
-        if e.get("type") != "Goal":
+        if e.get("type") != "Goal" or e.get("detail") == "Missed Penalty":
             continue
         player, assist = e.get("player") or {}, e.get("assist") or {}
         rows.append(
@@ -192,7 +197,7 @@ def man_of_the_match_from_api_football(fixture: dict, events: list) -> dict | No
     for e in events:
         team_name = (e.get("team") or {}).get("name")
         detail = e.get("detail") or ""
-        if e.get("type") == "Goal":
+        if e.get("type") == "Goal" and detail != "Missed Penalty":
             player, assist = e.get("player") or {}, e.get("assist") or {}
             _bump(scores, player.get("name"), team_name, OWN_GOAL_POINTS if detail == "Own Goal" else GOAL_POINTS)
             if assist.get("name"):

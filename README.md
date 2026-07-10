@@ -159,8 +159,25 @@ dataset the rest of the app trains on. It's pulled live from two APIs:
   timezone boundary. When that happens, or if `API_FOOTBALL_KEY` isn't set
   at all, the tab falls back to football-data.org's own (usually empty)
   lineup/goal fields rather than erroring.
+- **API-Football's free tier only searches recent dates** — roughly
+  yesterday/today/tomorrow, not the full tournament archive. Older finished
+  matches (browsable via football-data.org, which has no such limit) will
+  correctly fall back rather than erroring, since the lookup fails with a
+  plain "not available on your plan" message.
+- API-Football's free tier is also capped at **10 requests/minute** (in
+  addition to 100/day) — rapidly switching between many matches can hit
+  that; the tab shows the rate-limit message rather than crashing.
 - Everything here degrades gracefully — a caption at the bottom of the
   section always says which data source was actually used.
+
+**Confirmed working end-to-end** with a real API-Football key: real starting
+lineups (e.g. Spain's actual XI for a 2026 World Cup match — Rodri, Lamine
+Yamal, Unai Simón, etc. — with the correct 4-2-3-1 formation) and real goal
+events with correct scorers/assists and a sensible Man of the Match. One bug
+this caught and fixed: API-Football files a missed penalty under the same
+event type as a scored goal (`type: "Goal"`, `detail: "Missed Penalty"`) —
+`src/matchcenter.py` now excludes that detail explicitly so a missed penalty
+isn't counted as a goal or scored toward Man of the Match.
 
 ## Roadmap
 
