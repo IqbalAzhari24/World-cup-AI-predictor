@@ -32,6 +32,16 @@ def main():
     print(f"  Draw{'':<11}: {probs['draw']:6.1%}")
     print(f"  {args.away_team} win : {probs['away_win']:6.1%}")
 
+    from .scoreline import top_scorelines
+    try:
+        (xg_h, xg_a), lines = top_scorelines(args.home_team, args.away_team, neutral=not args.home)
+    except FileNotFoundError:
+        return  # older artifact without goal models; W/D/L already printed
+    print(f"\nExpected goals: {args.home_team} {xg_h:.2f} - {xg_a:.2f} {args.away_team}")
+    print("Most likely scorelines:")
+    for (gh, ga), p in lines:
+        print(f"  {gh}-{ga}  {p:6.1%}")
+
 
 if __name__ == "__main__":
     main()

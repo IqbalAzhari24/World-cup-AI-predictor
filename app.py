@@ -112,6 +112,16 @@ with match_tab:
                    ("Draw", p_draw, "draw"),
                    (f"{team_b} win", p_loss, "away")])
 
+        try:
+            from src.scoreline import top_scorelines
+            (xg_a, xg_b), lines = top_scorelines(team_a, team_b, neutral)
+        except FileNotFoundError:
+            lines = None  # artifact predates the goal models; refresh & retrain to enable
+        if lines:
+            st.subheader("Most likely scorelines")
+            st.caption(f"Expected goals: {team_a} **{xg_a:.2f}** — **{xg_b:.2f}** {team_b}")
+            bar_chart([(f"{gh}-{ga}", p, "champ") for (gh, ga), p in lines])
+
 with tournament_tab:
     st.markdown(
         "Simulates the **entire 2026 World Cup** from the group stage: round-robin "
