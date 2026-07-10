@@ -15,8 +15,10 @@ this problem size.
      and margin-of-victory scaling — the single strongest signal in football.
    - Home advantage (+60 Elo, disabled on neutral ground).
    - Recent form, attack and defense averages over the last 5 matches.
-3. **Model** (`src/model.py`) — scikit-learn `HistGradientBoostingClassifier`
-   producing calibrated win/draw/loss probabilities.
+3. **Models** (`src/model.py`) — scikit-learn `HistGradientBoostingClassifier`
+   for win/draw/loss probabilities, plus two Poisson gradient-boosted
+   regressors for expected goals, which give exact-scoreline probabilities
+   (`src/scoreline.py`).
 4. **Tournament simulation** (`src/simulate.py`) — Monte Carlo: play out the
    knockout bracket 10,000 times to get each team's chance of lifting the cup.
 
@@ -29,7 +31,9 @@ on par with published football-prediction models.
 ```bash
 pip install -r requirements.txt
 
-# Web UI — match predictor, bracket simulator, Elo rankings
+# Web UI — match predictor, tournament & bracket simulators, Elo rankings.
+# The sidebar shows how fresh the data is; one click on "Refresh data &
+# retrain" pulls the latest results and rebuilds the model (~1 min).
 streamlit run app.py
 
 # 1. Download data + train (takes ~1 minute)
@@ -77,7 +81,8 @@ group plus the 8 best thirds are seeded into the round-of-32 bracket.
 ## Roadmap
 
 - [x] Group-stage simulation (points, goal difference, tiebreakers) for full-tournament odds
-- [ ] Poisson goal model for exact scoreline probabilities
+- [x] Poisson goal model for expected goals + exact scoreline probabilities
 - [ ] Probability calibration (isotonic) + Brier score tracking
 - [x] Streamlit web UI (match predictor, bracket simulator, Elo rankings)
-- [ ] Auto-refresh data weekly and re-train
+- [x] One-click refresh-and-retrain from the app sidebar
+- [ ] Auto-refresh data weekly and re-train (scheduled)

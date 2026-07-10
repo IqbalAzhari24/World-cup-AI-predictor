@@ -4,7 +4,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor
 from sklearn.metrics import accuracy_score, log_loss
 
 from .data import load_matches
@@ -46,10 +46,28 @@ def train(min_year: int = 1990, test_years: int = 4, verbose: bool = True):
         print(f"(always-predict-prior baseline log loss: "
               f"{log_loss(y[test_idx], np.tile(baseline, (test_idx.sum(), 1))):.3f})")
 
+    # Poisson goal models: expected goals for each side, for scoreline prediction
+    goals_home = matches.home_score[mask].clip(upper=10)
+    goals_away = matches.away_score[mask].clip(upper=10)
+    xg_home = HistGradientBoostingRegressor(
+        loss="poisson", max_iter=200, learning_rate=0.05, max_depth=4, random_state=42
+    )
+    xg_away = HistGradientBoostingRegressor(
+        loss="poisson", max_iter=200, learning_rate=0.05, max_depth=4, random_state=42
+    )
+    xg_home.fit(X[train_idx], goals_home[train_idx])
+    xg_away.fit(X[train_idx], goals_away[train_idx])
+    if verbose:
+        mae_h = np.abs(xg_home.predict(X[test_idx]) - goals_home[test_idx]).mean()
+        mae_a = np.abs(xg_away.predict(X[test_idx]) - goals_away[test_idx]).mean()
+        print(f"Expected-goals MAE (test): home {mae_h:.3f}, away {mae_a:.3f}")
+
     # Refit on everything before saving so predictions use all available history
     model.fit(X, y)
+    xg_home.fit(X, goals_home)
+    xg_away.fit(X, goals_away)
     with open(ARTIFACT_PATH, "wb") as f:
-        pickle.dump({"model": model, "states": states}, f)
+        pickle.dump({"model": model, "xg_home": xg_home, "xg_away": xg_away, "states": states}, f)
     if verbose:
         print(f"Saved model + ratings for {len(states)} teams -> {ARTIFACT_PATH}")
     return model, states
@@ -61,6 +79,15 @@ def load_artifacts():
     with open(ARTIFACT_PATH, "rb") as f:
         art = pickle.load(f)
     return art["model"], art["states"]
+
+
+def load_goal_models():
+    """Poisson expected-goals regressors (retrain if the artifact predates them)."""
+    with open(ARTIFACT_PATH, "rb") as f:
+        art = pickle.load(f)
+    if "xg_home" not in art:
+        raise FileNotFoundError("Model artifact has no goal models. Re-run: python -m src.model")
+    return art["xg_home"], art["xg_away"]
 
 
 if __name__ == "__main__":
