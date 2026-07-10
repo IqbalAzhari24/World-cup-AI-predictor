@@ -1,9 +1,10 @@
 # World Cup AI Predictor ⚽
 
 A lightweight but powerful AI that predicts international football matches and
-simulates World Cup brackets. No GPU, no deep learning, no API keys — just
+simulates World Cup brackets. No GPU, no deep learning required — just
 well-engineered features and gradient boosting, which is the sweet spot for
-this problem size.
+this problem size. An optional "Match center" adds player-level detail
+(first XI, goalscorers) for real matches via the football-data.org API.
 
 ## How it works
 
@@ -21,6 +22,10 @@ this problem size.
    (`src/scoreline.py`).
 4. **Tournament simulation** (`src/simulate.py`) — Monte Carlo: play out the
    knockout bracket 10,000 times to get each team's chance of lifting the cup.
+5. **Match center** (`src/matchcenter.py`, optional) — player-level detail for
+   real matches (first XI, goalscorers, a heuristic Man of the Match) pulled
+   live from the [football-data.org](https://www.football-data.org/) API.
+   This is the one place the project talks to an external API/key — see below.
 
 **Current performance** (held-out last 4 years, ~4,000 matches):
 60.7% three-way accuracy, log loss 0.871 (vs 1.053 naive baseline) —
@@ -48,6 +53,11 @@ python -m src.simulate "Argentina" "Egypt" "Switzerland" "Colombia" \
 
 # 4. Simulate the FULL 2026 World Cup from the group stage
 python -m src.tournament -n 10000
+
+# 5. Match center: first XI, goalscorers, heuristic Man of the Match
+# (needs a free football-data.org API key — see "Match center" below)
+export FOOTBALL_DATA_API_KEY="your-key-here"
+python -m src.matchcenter WC --matchday 1
 ```
 
 Example output:
@@ -70,6 +80,8 @@ src/
   predict.py   # single-match CLI                        (python -m src.predict)
   simulate.py  # Monte Carlo knockout simulation         (python -m src.simulate)
   tournament.py# full tournament: groups + knockout      (python -m src.tournament)
+  football_data.py # football-data.org API client (competitions, matches)
+  matchcenter.py    # first XI / goalscorers / Man of the Match (python -m src.matchcenter)
 ```
 
 The 2026 groups aren't hardcoded — `tournament.py` recovers them from the
@@ -77,6 +89,38 @@ fixture list by finding the 4-team connected components of the group-stage
 match graph. Group games sample full scorelines so points, goal difference
 and goals-for drive the standings like the real tiebreakers; the top 2 per
 group plus the 8 best thirds are seeded into the round-of-32 bracket.
+
+## Match center (player features)
+
+The rest of the project needs no API key. This one feature does, because
+lineups and goalscorers are real-world match data no open dataset tracks —
+they come live from [football-data.org](https://www.football-data.org/).
+
+1. Register for a free key: https://www.football-data.org/client/register
+2. Make it available to the app one of two ways (never commit it to git —
+   both paths below are already git-ignored):
+   - **Local run:** `export FOOTBALL_DATA_API_KEY="your-key-here"`
+   - **Deployed app (e.g. Streamlit Community Cloud) shared by one key for
+     all visitors:** copy `.streamlit/secrets.toml.example` to
+     `.streamlit/secrets.toml` and paste your key in (or paste the same
+     content into the host's Secrets settings). Streamlit exposes root-level
+     `secrets.toml` keys as environment variables automatically, so no code
+     change is needed either way.
+3. Pick a competition (World Cup, Euros, Champions League, Premier League —
+   the ones covered by the free tier) and a finished match. You'll see:
+   - **First XI** — starting lineup and formation for each side.
+   - **Goalscorers** — minute, scorer, assist, per goal.
+   - **Man of the match** — *heuristic*, not an official award: football-data.org
+     doesn't publish one, so `src/matchcenter.py` scores goals (+4, own goals
+     −2), assists (+2) and cards (yellow −1, red −3), with a small bonus for
+     being on the winning side.
+
+**Free-tier caveat:** football-data.org's free plan covers World Cup/Euro/
+league fixtures and scores, but lineups, substitutions and cards are a paid
+add-on ("player data"). On a free key, the app still works — it just shows
+"no lineup data available" / "not enough match data" instead of erroring.
+Everything here degrades gracefully rather than crashing when a match has
+partial or no player data.
 
 ## Roadmap
 
@@ -86,3 +130,4 @@ group plus the 8 best thirds are seeded into the round-of-32 bracket.
 - [x] Streamlit web UI (match predictor, bracket simulator, Elo rankings)
 - [x] One-click refresh-and-retrain from the app sidebar
 - [ ] Auto-refresh data weekly and re-train (scheduled)
+- [x] Match center: first XI, goalscorers, heuristic Man of the Match (football-data.org)

@@ -4,6 +4,8 @@ import streamlit as st
 
 from src.data import DATA_PATH, load_matches
 from src.elo import match_features
+from src.football_data import COMPETITIONS, FootballDataError, api_key_from_env, get_match, list_matches
+from src.matchcenter import first_xi, goalscorers, man_of_the_match, match_summary
 from src.model import FEATURES, load_artifacts, train
 from src.simulate import simulate_knockout
 from src.tournament import extract_groups, simulate_tournament
@@ -92,8 +94,8 @@ st.caption(
     "Probabilities, not prophecies."
 )
 
-match_tab, tournament_tab, bracket_tab, rankings_tab = st.tabs(
-    ["Match predictor", "2026 tournament", "Bracket simulator", "Elo rankings"]
+match_tab, tournament_tab, bracket_tab, rankings_tab, matchcenter_tab = st.tabs(
+    ["Match predictor", "2026 tournament", "Bracket simulator", "Elo rankings", "Match center"]
 )
 
 with match_tab:
@@ -165,6 +167,99 @@ with bracket_tab:
         champs = simulate_knockout(bracket, n_sims, artifacts=(model, states))
         st.subheader("Chance of winning the cup")
         bar_chart([(team, wins / n_sims, "champ") for team, wins in champs.most_common()])
+
+with matchcenter_tab:
+    st.markdown(
+        "Player-level detail — starting XI, goalscorers, and a heuristic "
+        "**Man of the Match** — for real matches, pulled live from "
+        "[football-data.org](https://www.football-data.org/)."
+    )
+    api_key = api_key_from_env()
+    comp_code = st.selectbox(
+        "Competition", list(COMPETITIONS), format_func=lambda c: f"{COMPETITIONS[c]} ({c})"
+    )
+
+    @st.cache_data(show_spinner="Fetching finished matches...", ttl=300)
+    def cached_matches(competition: str, key: str):
+        return list_matches(competition, key)
+
+    @st.cache_data(show_spinner="Fetching match detail...", ttl=300)
+    def cached_match(match_id: int, key: str):
+        return get_match(match_id, key)
+
+    if not api_key:
+        st.info(
+            "Match center needs a football-data.org API key. Set "
+            "`FOOTBALL_DATA_API_KEY` (env var, or `.streamlit/secrets.toml` "
+            "for a deployed app) — see the README."
+        )
+    else:
+        try:
+            matches = cached_matches(comp_code, api_key)
+        except FootballDataError as e:
+            matches = None
+            st.error(str(e))
+
+        if matches is not None:
+            if not matches:
+                st.warning(f"No finished matches found for {COMPETITIONS[comp_code]}.")
+            else:
+                choice = st.selectbox(
+                    "Match", matches, format_func=lambda m: f"{m['homeTeam']['name']} vs "
+                    f"{m['awayTeam']['name']} ({m['utcDate'][:10]})"
+                )
+                try:
+                    match = cached_match(choice["id"], api_key)
+                except FootballDataError as e:
+                    match = None
+                    st.error(str(e))
+
+                if match is not None:
+                    st.subheader(match_summary(match))
+
+                    xi = first_xi(match)
+                    col1, col2 = st.columns(2)
+                    for col, side in ((col1, "home"), (col2, "away")):
+                        info = xi[side]
+                        title = info["team"] or side.title()
+                        if info["formation"]:
+                            title += f" — {info['formation']}"
+                        col.markdown(f"**{title}**")
+                        if info["lineup"].empty:
+                            col.caption("No lineup data available for this match.")
+                        else:
+                            col.dataframe(
+                                info["lineup"].rename(
+                                    columns={"shirt": "#", "name": "Name", "position": "Position"}
+                                ),
+                                hide_index=True,
+                                use_container_width=True,
+                            )
+
+                    st.markdown("**Goals**")
+                    goals = goalscorers(match)
+                    if goals.empty:
+                        st.caption("No goals in this match.")
+                    else:
+                        st.dataframe(
+                            goals.rename(columns={
+                                "minute": "Min", "team": "Team", "scorer": "Scorer",
+                                "assist": "Assist", "type": "Type",
+                            }),
+                            hide_index=True,
+                            use_container_width=True,
+                        )
+
+                    st.markdown("**Man of the match**")
+                    motm = man_of_the_match(match)
+                    if motm:
+                        st.write(f"🏅 **{motm['name']}** ({motm['team']}) — heuristic score {motm['points']}")
+                        st.caption(
+                            "Not an official award — football-data.org doesn't publish one. "
+                            "Derived from goals, assists and cards in this match."
+                        )
+                    else:
+                        st.caption("Not enough match event data to compute one.")
 
 with rankings_tab:
     top = st.slider("Show top", 10, 50, 25, step=5)
