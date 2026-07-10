@@ -6,6 +6,11 @@ well-engineered features and gradient boosting, which is the sweet spot for
 this problem size. An optional "Match center" adds player-level detail
 (first XI, goalscorers) for real matches via the football-data.org API.
 
+![Match predictor: Spain vs Belgium](docs/screenshots/match_predictor.png)
+
+*Spain vs Belgium — an actual 2026 World Cup fixture — predicted from the
+Streamlit match predictor tab.*
+
 ## How it works
 
 1. **Data** — ~48,000 international matches since 1872 from the open
@@ -91,6 +96,12 @@ and goals-for drive the standings like the real tiebreakers; the top 2 per
 group plus the 8 best thirds are seeded into the round-of-32 bracket.
 
 ## Match center (player features)
+
+![Match center: first XI, goalscorers, Man of the Match](docs/screenshots/match_center.png)
+
+*Live from football-data.org — on a free-tier key, lineups/goals aren't
+included (see the caveat below), so the tab shows that plainly instead of
+guessing.*
 
 The rest of the project needs no API key. This one feature does, because
 lineups and goalscorers are real-world match data no open dataset tracks —
