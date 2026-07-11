@@ -1,4 +1,6 @@
 """Streamlit UI for the World Cup AI predictor.  Run:  streamlit run app.py"""
+import time
+
 import pandas as pd
 import streamlit as st
 
@@ -80,9 +82,23 @@ def data_through(_mtime: float) -> str:
 model, states = get_artifacts()
 teams_by_rating = sorted(states, key=lambda t: states[t].rating, reverse=True)
 
+# Refreshing retrains the model for every visitor at once (Streamlit shares one
+# process across all of them), so a cooldown stops the button being smashed
+# into a repeated free-for-all retrain. DATA_PATH's mtime is shared disk state,
+# not per-session, so this cools down for everyone rather than per-browser.
+REFRESH_COOLDOWN_SECONDS = 15 * 60
+
 with st.sidebar:
     st.caption(f"Results through **{data_through(DATA_PATH.stat().st_mtime)}**")
-    if st.button("🔄 Refresh data & retrain", help="Download the latest results and rebuild the model (~1 min)"):
+    cooldown_left = REFRESH_COOLDOWN_SECONDS - (time.time() - DATA_PATH.stat().st_mtime)
+    if cooldown_left > 0:
+        st.button(
+            "🔄 Refresh data & retrain",
+            disabled=True,
+            help=f"Available again in ~{int(cooldown_left // 60) + 1} min "
+                 "(shared cooldown across everyone using this app).",
+        )
+    elif st.button("🔄 Refresh data & retrain", help="Download the latest results and rebuild the model (~1 min)"):
         with st.spinner("Downloading latest results and retraining..."):
             load_matches(refresh=True)
             train(verbose=False)

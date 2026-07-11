@@ -45,7 +45,9 @@ pip install -r requirements.txt
 
 # Web UI — match predictor, tournament & bracket simulators, Elo rankings.
 # The sidebar shows how fresh the data is; one click on "Refresh data &
-# retrain" pulls the latest results and rebuilds the model (~1 min).
+# retrain" pulls the latest results and rebuilds the model (~1 min). Since
+# Streamlit runs one shared process for every visitor, this button has a
+# 15-minute cooldown shared across everyone using the app, not per-browser.
 streamlit run app.py
 
 # 1. Download data + train (takes ~1 minute)
@@ -167,6 +169,11 @@ dataset the rest of the app trains on. It's pulled live from two APIs:
 - API-Football's free tier is also capped at **10 requests/minute** (in
   addition to 100/day) — rapidly switching between many matches can hit
   that; the tab shows the rate-limit message rather than crashing.
+- Because the API key is **shared across every visitor** (see below), both
+  `src/football_data.py` and `src/api_football.py` throttle their own
+  outbound requests to stay under 10/min in-process (`src/_ratelimit.py`),
+  so many people using the app at once are spaced out automatically instead
+  of just hitting each other's rate limit.
 - Everything here degrades gracefully — a caption at the bottom of the
   section always says which data source was actually used.
 
@@ -189,3 +196,4 @@ isn't counted as a goal or scored toward Man of the Match.
 - [ ] Auto-refresh data weekly and re-train (scheduled)
 - [x] Match center: first XI, goalscorers, heuristic Man of the Match (football-data.org + API-Football)
 - [x] Prediction vs actual result comparison in Match center
+- [x] Rate-limit hardening for the shared API keys: in-process request throttling + a shared cooldown on retrain
