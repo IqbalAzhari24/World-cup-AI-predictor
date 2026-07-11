@@ -1,4 +1,5 @@
 """Streamlit UI for the World Cup AI predictor.  Run:  streamlit run app.py"""
+import html
 import time
 
 import pandas as pd
@@ -51,17 +52,22 @@ STYLE = """
 
 
 def bar_chart(rows: list[tuple[str, float, str]]):
-    """Horizontal probability bars: (label, probability, css color var name)."""
-    html = [STYLE, '<div class="viz-root">']
+    """Horizontal probability bars: (label, probability, css color var name).
+
+    Labels are HTML-escaped before going into unsafe_allow_html markup —
+    several come from external data (team/player names from football-data.org
+    and the open match-results dataset), not something we fully control.
+    """
+    parts = [STYLE, '<div class="viz-root">']
     for label, prob, color in rows:
-        html.append(
-            f'<div class="bar-row"><span class="bar-label">{label}</span>'
+        parts.append(
+            f'<div class="bar-row"><span class="bar-label">{html.escape(str(label))}</span>'
             f'<div class="bar-track"><div class="bar-fill" '
             f'style="width:{prob:.1%};background:var(--{color})"></div></div>'
             f'<span class="bar-value">{prob:.1%}</span></div>'
         )
-    html.append("</div>")
-    st.markdown("".join(html), unsafe_allow_html=True)
+    parts.append("</div>")
+    st.markdown("".join(parts), unsafe_allow_html=True)
 
 
 @st.cache_resource(show_spinner="Training model on 48k international matches (first run only)...")
