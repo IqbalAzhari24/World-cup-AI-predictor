@@ -12,7 +12,13 @@ from typing import Optional
 
 import requests
 
+from src._ratelimit import Throttle
+
 BASE_URL = "https://v3.football.api-sports.io"
+
+# Free tier allows 10 requests/minute; margin keeps a shared key from tipping
+# over that when several visitors use the app at once.
+_throttle = Throttle(min_interval=6.5)
 
 
 class ApiFootballError(RuntimeError):
@@ -31,6 +37,7 @@ def _request(path: str, api_key: str, params: Optional[dict] = None) -> list:
             "API_FOOTBALL_KEY, or pass it explicitly."
         )
     try:
+        _throttle.wait()
         resp = requests.get(
             f"{BASE_URL}{path}",
             headers={"x-apisports-key": api_key},
